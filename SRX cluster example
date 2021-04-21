@@ -26,3 +26,65 @@ set interfaces reth0 redundant-ether-options redundancy-group 1
 set interfaces reth0 unit 0 family inet address 198.51.100.1/24
 set security zones security-zone Untrust interfaces reth1.0
 set security zones security-zone Trust interfaces reth0.0 
+
+
+    Set up hostnames and management IP addresses for each device using configuration groups. These configurations are specific to each device and are unique to its specific node.
+    content_copy zoom_out_map
+
+    user@host# set groups node0 system host-name srx1500-1
+    user@host# set groups node0 interfaces fxp0 unit 0 family inet address 192.16.35.46/24
+    user@host# set groups node1 system host-name srx1500-2
+    user@host# set groups node1 interfaces fxp0 unit 0 family inet address 192.16.35.47/24
+
+    Set the default route and backup router for each node.
+    content_copy zoom_out_map
+
+    user@host# set groups node0 system backup-router <backup next-hop from fxp0> destination <management network/mask>
+    user@host# set groups node1 system backup-router <backup next-hop from fxp0> destination <management network/mask>
+
+    Set the apply-group command so that the individual configurations for each node set by the previous commands are applied only to that node.
+    content_copy zoom_out_map
+
+    user@host# set apply-groups "${node}"
+
+    Define the interfaces used for the fab connection (data plane links for RTO sync) by using physical ports ge-0/0/1 from each node. These interfaces must be connected back-to-back, or through a Layer 2 infrastructure.
+    content_copy zoom_out_map
+
+    user@host# set interfaces fab0 fabric-options member-interfaces ge-0/0/1
+    user@host# set interfaces fab1 fabric-options member-interfaces ge-7/0/1
+
+    Set up redundancy group 0 for the Routing Engine failover properties, and set up redundancy group 1 (all interfaces are in one redundancy group in this example) to define the failover properties for the redundant Ethernet interfaces.
+    content_copy zoom_out_map
+
+    user@host# set chassis cluster redundancy-group 0 node 0 priority 100
+    user@host# set chassis cluster redundancy-group 0 node 1 priority 1
+    user@host# set chassis cluster redundancy-group 1 node 0 priority 100
+    user@host# set chassis cluster redundancy-group 1 node 1 priority 1
+
+    Set up interface monitoring to monitor the health of the interfaces and trigger redundancy group failover.
+
+    We do not recommend Interface monitoring for redundancy group 0 because it causes the control plane to switch from one node to another node in case interface flap occurs.
+    content_copy zoom_out_map
+
+    user@host# set chassis cluster redundancy-group 1 interface-monitor ge-0/0/5 weight 255
+    user@host# set chassis cluster redundancy-group 1 interface-monitor ge-0/0/4 weight 255
+    user@host# set chassis cluster redundancy-group 1 interface-monitor ge-7/0/5 weight 255
+    user@host# set chassis cluster redundancy-group 1 interface-monitor ge-7/0/4 weight 255
+
+    Interface failover only occurs after the weight reaches 0.
+
+    Set up the redundant Ethernet (reth) interfaces and assign the redundant interface to a zone.
+    content_copy zoom_out_map
+
+    user@host# set chassis cluster reth-count 2
+    user@host# set interfaces ge-0/0/5 gigether-options redundant-parent reth1
+    user@host# set interfaces ge-7/0/5 gigether-options redundant-parent reth1
+    user@host# set interfaces reth1 redundant-ether-options redundancy-group 1
+    user@host# set interfaces reth1 unit 0 family inet address 203.0.113.233/24
+    user@host# set interfaces ge-0/0/4 gigether-options redundant-parent reth0
+    user@host# set interfaces ge-7/0/4 gigether-options redundant-parent reth0
+    user@host# set interfaces reth0 redundant-ether-options redundancy-group 1
+    user@host# set interfaces reth0 unit 0 family inet address 198.51.100.1/24
+    user@host# set security zones security-zone Untrust interfaces reth1.0
+    user@host# set security zones security-zone Trust interfaces reth0.0 
+
